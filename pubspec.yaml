@@ -1,0 +1,40 @@
+name: camstream_nodes
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+#resolution: workspace
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: ">=3.16.0"
+
+dependencies:
+  camera: ^0.11.0+1
+  # camera_linux:
+  #   path: ../../camera/tcna-packages/packages/camera/camera_linux
+  ffi: ^2.1.3
+  flutter:
+    sdk: flutter
+  code_assets: any
+  #hooks: any
+  logging: ^1.3.0
+  native_toolchain_c: any
+
+dev_dependencies:
+  build_runner: ^2.1.10
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  ffigen: ^19.0.0
+  lints: ^5.1.1
+  test: ^1.25.15
+
+flutter:
+  uses-material-design: true
+
+# ffigen:
+#   output: 'generated_bindings.dart'
+#   headers:
+#     entry-points:
+#       - 'example.h'

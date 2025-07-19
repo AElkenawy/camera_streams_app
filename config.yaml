@@ -1,0 +1,44 @@
+output: lib/pipewire_bindings.dart
+llvm-path:
+  - '/usr/lib/llvm-14'
+  - '/usr/lib64/libclang.so'
+  - '/usr/lib/x86_64-linux-gnu/libpipewire-0.3.so'
+
+headers:
+  entry-points:
+    - '/usr/include/pipewire-0.3/pipewire/pipewire.h'
+    - '/usr/include/pipewire-0.3/pipewire/registry.h'
+    - '/usr/include/pipewire-0.3/pipewire/main-loop.h'
+    - '/usr/include/pipewire-0.3/pipewire/core.h'
+    - '/usr/include/spa-0.2/spa/utils/dict.h'
+    - '/usr/include/spa-0.2/spa/utils/hook.h'
+    - '/usr/include/spa-0.2/spa/support/plugin.h'
+    - '/usr/include/spa-0.2/spa/utils/result.h'
+    - '/usr/include/spa-0.2/spa/param/video/raw.h'
+    - '/usr/include/spa-0.2/spa/param/video/format-utils.h'
+    - '/usr/include/wireplumber-0.4/wp/wp.h'
+
+  include-directives:
+    - '**pipewire.h'
+    - '**context.h'
+    - '**registry.h'
+    - '**main-loop.h'
+    - '**core.h'
+    - '**stream.h'
+    - '**plugin.h'
+    - '**result.h'
+    - '**dict.h'
+    - '**hook.h'
+    - '**raw.h'
+    - '**format-utils.h'
+    - '**wp.h'
+
+compiler-opts:
+  - '-I/usr/include/pipewire-0.3'
+  - '-I/usr/include/wireplumber-0.4'
+  - '-I/usr/include/spa-0.2'
+  - '-I/usr/include/glib-2.0'
+  - '-I/usr/lib/x86_64-linux-gnu/glib-2.0/include'
+
+name: 'PipeWire'
+description: 'Bindings to PipeWire API'
