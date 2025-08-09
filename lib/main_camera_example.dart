@@ -8,10 +8,6 @@ import 'package:camera_linux/camera_linux.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:path/path.dart' as path;
 
-// FFI signature of the hello_world C function
-typedef HelloWorldFunc = ffi.Void Function();
-// Dart type definition for calling the C foreign function
-typedef HelloWorld = void Function();
 
 
 void main() async {
@@ -20,84 +16,13 @@ void main() async {
   // Register the Linux camera plugin
   CameraPlatform.instance = CameraLinux();
 
-  // Initialize native library
-  final nativeLib = NativeLibrary();
-  if (!nativeLib.initialize()) {
-    print('Failed to initialize native library!');
-    // Handle initialization failure
-  }
 
   // Register the Linux camera plugin
   CameraPlatform.instance = CameraLinux();
 
-  // Call native function
-  try {
-    nativeLib.helloWorld();
-  } catch (e) {
-    print('Error calling native function: $e');
-  }
-
   runApp(const CameraLinuxApp());
 }
 
-class NativeLibrary {
-  // Private constructor
-  NativeLibrary._();
-
-  // Singleton instance
-  static final NativeLibrary _instance = NativeLibrary._();
-
-  // Factory constructor to return the singleton instance
-  factory NativeLibrary() => _instance;
-
-  // The dynamic library reference
-  late final ffi.DynamicLibrary _dylib;
-
-  // Native function references
-  late final HelloWorld helloWorld;
-  // late final SomeOther someOtherFunction;
-
-  // Initialization flag
-  bool _initialized = false;
-
-  // Initialize the library and load all functions
-  bool initialize() {
-    if (_initialized) return true;
-
-    try {
-      _dylib = _openLibrary();
-      _loadFunctions();
-      _initialized = true;
-      return true;
-    } catch (e) {
-      print('Failed to initialize native library: $e');
-      return false;
-    }
-  }
-
-  // Private method to load the dynamic library
-  ffi.DynamicLibrary _openLibrary() {
-    String libraryPath = '';
-
-    if (Platform.isLinux) {
-      libraryPath = path.join(
-        Directory.current.path,
-        'pw_ffi_library',
-        'libpw_ffi.so',
-      );
-    } else {
-      throw UnsupportedError('Unsupported platform for FFI');
-    }
-
-    return ffi.DynamicLibrary.open(libraryPath);
-  }
-  // Load all native functions
-  void _loadFunctions() {
-    helloWorld = _dylib
-        .lookup<ffi.NativeFunction<HelloWorldFunc>>('hello_world')
-        .asFunction();
-  }
-}
 
 // overall app container
 class CameraLinuxApp extends StatelessWidget {
