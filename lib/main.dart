@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:camera_linux/camera_linux.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:path/path.dart' as path;
+import 'package:grpc/grpc.dart';
+import 'package:camera_streams_app/gen/coordinator.pbgrpc.dart';
 
 
 void main() async {
