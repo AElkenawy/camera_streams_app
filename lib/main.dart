@@ -10,6 +10,80 @@ import 'package:path/path.dart' as path;
 import 'package:grpc/grpc.dart';
 import 'package:camera_streams_app/gen/coordinator.pbgrpc.dart';
 
+// gRPC Coordinator Service Implementation
+class FlutterCoordinatorService extends CoordinatorServiceBase {
+  final Function(Detection) onDetectionReceived;
+
+  FlutterCoordinatorService({required this.onDetectionReceived});
+
+  @override
+  Future<ModelListResponse> registerModels(ServiceCall call, ModelListRequest request) async {
+    print('Received model registration from C++ client');
+
+    // Auto-select first available model
+    Model selectedModel = request.availableModels.isNotEmpty
+        ? request.availableModels.first
+        : Model(modelName: 'default', modelVersion: '1.0');
+
+    print('Selected: ${selectedModel.modelName} v${selectedModel.modelVersion}');
+
+    return ModelListResponse(
+      success: true,
+      controlId: 1,
+      selectedModel: selectedModel,
+    );
+  }
+
+  @override
+  Future<ConnectResponse> connect(ServiceCall call, ConnectRequest request) async {
+    print('C++ client connected: ${request.selectedModel.modelName}');
+    return ConnectResponse(
+      accepted: true,
+      errorMsg: '',
+    );
+  }
+
+  @override
+  Stream<Ack> streamDetections(ServiceCall call, Stream<Detection> request) async* {
+    print('Detection streaming started');
+
+    await for (Detection detection in request) {
+      // Forward detection to Flutter UI
+      onDetectionReceived(detection);
+
+      // Send acknowledgment back to C++ client
+      yield Ack(
+        success: true,
+        message: 'continue',
+      );
+    }
+  }
+
+  @override
+  Future<Ack> ping(ServiceCall call, HeartBeat request) async {
+    return Ack(
+      success: true,
+      message: 'pong',
+    );
+  }
+}
+
+// Detection data class for UI state
+class DetectionInfo {
+  final String className;
+  final int classId;
+  final double confidence;
+  final String iconPath;
+  final DateTime timestamp;
+
+  DetectionInfo({
+    required this.className,
+    required this.classId,
+    required this.confidence,
+    required this.iconPath,
+    required this.timestamp,
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +93,6 @@ void main() async {
 
   runApp(const CameraLinuxApp());
 }
-
 
 // overall app container
 class CameraLinuxApp extends StatelessWidget {
@@ -51,10 +124,19 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isInitialized = false;
   String _errorMessage = '';
 
+  // gRPC server variables
+  Server? _grpcServer;
+  bool _serverRunning = false;
+
+  // Detection display variables
+  DetectionInfo? _currentDetection;
+  Timer? _detectionTimer;
+
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    _startGrpcServer();
   }
 
   Future<void> _initializeCamera() async {
@@ -64,7 +146,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
       if (_cameras.isEmpty) {
         setState(() { // updates the screen when data changes
-
           _errorMessage = 'No cameras found';
         });
         return;
@@ -94,7 +175,6 @@ class _CameraScreenState extends State<CameraScreen> {
       await _controller!.initialize();
 
       if (mounted) { //mounted checks if the widget is still visible before updating
-
         setState(() {
           _isInitialized = true;
           _errorMessage = '';
@@ -105,6 +185,93 @@ class _CameraScreenState extends State<CameraScreen> {
         _errorMessage = 'Camera initialization failed: $e';
         _isInitialized = false;
       });
+    }
+  }
+
+  Future<void> _startGrpcServer() async {
+    try {
+      _grpcServer = Server.create(
+        services: [
+          FlutterCoordinatorService(
+            onDetectionReceived: _handleDetection,
+          ),
+        ],
+        codecRegistry: CodecRegistry(codecs: const [GzipCodec(), IdentityCodec()]),
+      );
+
+      await _grpcServer!.serve(port: 50051);
+
+      setState(() {
+        _serverRunning = true;
+      });
+
+      print('Flutter gRPC Server started on port 50051');
+      print('Waiting for C++ detection clients...');
+    } catch (e) {
+      print('Failed to start gRPC server: $e');
+      setState(() {
+        _errorMessage = 'gRPC server failed: $e';
+      });
+    }
+  }
+
+  void _handleDetection(Detection detection) {
+    if (!mounted) return;
+
+    // Convert detection to UI-friendly format
+    DetectionInfo detectionInfo = DetectionInfo(
+      className: detection.class_1,
+      classId: detection.classId,
+      confidence: detection.confidence,
+      iconPath: _getIconPathForDetection(detection.classId, detection.class_1),
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      _currentDetection = detectionInfo;
+    });
+
+    // Clear detection after 3 seconds
+    _detectionTimer?.cancel();
+    _detectionTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _currentDetection = null;
+        });
+      }
+    });
+
+    print('Detection: ${detection.class_1} (${detection.confidence.toStringAsFixed(2)})');
+  }
+
+  String _getIconPathForDetection(int classId, String className) {
+    // Map detection class IDs to traffic sign icons
+    // This can be expanded based on your available assets
+    switch (classId) {
+      case 5:
+        return 'assets/traffic_signs/5_speed-limit-80km.png';
+      case 11:
+        return 'assets/traffic_signs/11_right-way-next.png';
+      case 13:
+        return 'assets/traffic_signs/13_yield.png';
+      case 14:
+        return 'assets/traffic_signs/14_stop.png';
+      case 17:
+        return 'assets/traffic_signs/17_no-entry.png';
+      case 21:
+        return 'assets/traffic_signs/21_double-curve.png';
+      case 23:
+        return 'assets/traffic_signs/23_slippery-road.png';
+      case 27:
+        return 'assets/traffic_signs/27_pedestrians.png';
+      case 29:
+        return 'assets/traffic_signs/29_bicycles-crossing.png';
+      case 31:
+        return 'assets/traffic_signs/31_wild-animals.png';
+
+      default:
+        // Fallback to no-entry for unknown detections
+        return 'assets/traffic_signs/_unknown.png';
     }
   }
 
@@ -119,6 +286,8 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _detectionTimer?.cancel();
+    _grpcServer?.shutdown();
     super.dispose();
   }
 
@@ -132,6 +301,63 @@ class _CameraScreenState extends State<CameraScreen> {
     return AspectRatio(
       aspectRatio: _controller!.value.aspectRatio,
       child: CameraPreview(_controller!), // widget that displays camera's output
+    );
+  }
+
+  Widget _buildDetectionOverlay() {
+    if (_currentDetection == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      top: 20,
+      left: 20,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              _currentDetection!.iconPath,
+              width: 64,
+              height: 64,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.warning,
+                  size: 64,
+                  color: Colors.orange,
+                );
+              },
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _currentDetection!.className + " Sign Detected!",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Confidence: ${(_currentDetection!.confidence * 100).toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -197,6 +423,47 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
+  Widget _buildStatusInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cameras found: ${_cameras.length}',
+                style: const TextStyle(fontSize: 16),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    _serverRunning ? Icons.wifi : Icons.wifi_off,
+                    color: _serverRunning ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _serverRunning ? 'gRPC Ready' : 'gRPC Off',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _serverRunning ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (_controller != null && _isInitialized)
+            Text(
+              'Active: ${_controller!.description.name}',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+        ],
+      ),
+    );
+  }
+
   // Main screen layout
   @override
   Widget build(BuildContext context) {
@@ -213,28 +480,20 @@ class _CameraScreenState extends State<CameraScreen> {
           Expanded(
             child: Container(
               color: Colors.black,
-              child: Center(
-                child: _buildCameraPreview(),
+              child: Stack(
+                children: [
+                  // Camera preview behind
+                  Center(
+                    child: _buildCameraPreview(),
+                  ),
+                  // Dynamic detection overlay
+                  _buildDetectionOverlay(),
+                ],
               ),
             ),
           ),
           _buildCameraSelector(),
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text(
-                  'Cameras found: ${_cameras.length}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                if (_controller != null && _isInitialized)
-                  Text(
-                    'Active: ${_controller!.description.name}',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-              ],
-            ),
-          ),
+          _buildStatusInfo(),
         ],
       ),
     );
