@@ -6,6 +6,9 @@ import 'package:camera_linux/camera_linux.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:grpc/grpc.dart';
 import 'package:camera_streams_app/gen/coordinator.pbgrpc.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('Main');
 
 // gRPC Coordinator Service Implementation
 class FlutterCoordinatorService extends CoordinatorServiceBase {
@@ -15,14 +18,14 @@ class FlutterCoordinatorService extends CoordinatorServiceBase {
 
   @override
   Future<ModelListResponse> registerModels(ServiceCall call, ModelListRequest request) async {
-    print('Received model registration from C++ client');
+    _logger.info('Received model registration from C++ client');
 
     // Auto-select first available model
     Model selectedModel = request.availableModels.isNotEmpty
         ? request.availableModels.first
         : Model(modelName: 'default', modelVersion: '1.0');
 
-    print('Selected: ${selectedModel.modelName} v${selectedModel.modelVersion}');
+    _logger.info('Selected: ${selectedModel.modelName} v${selectedModel.modelVersion}');
 
     return ModelListResponse(
       success: true,
@@ -33,7 +36,7 @@ class FlutterCoordinatorService extends CoordinatorServiceBase {
 
   @override
   Future<ConnectResponse> connect(ServiceCall call, ConnectRequest request) async {
-    print('C++ client connected: ${request.selectedModel.modelName}');
+    _logger.info('C++ client connected: ${request.selectedModel.modelName}');
     return ConnectResponse(
       accepted: true,
       errorMsg: '',
@@ -42,7 +45,7 @@ class FlutterCoordinatorService extends CoordinatorServiceBase {
 
   @override
   Stream<Ack> streamDetections(ServiceCall call, Stream<Detection> request) async* {
-    print('Detection streaming started');
+    _logger.info('Detection streaming started');
 
     await for (Detection detection in request) {
       // Forward detection to Flutter UI
@@ -202,10 +205,10 @@ class _CameraScreenState extends State<CameraScreen> {
         _serverRunning = true;
       });
 
-      print('Flutter gRPC Server started on port 50051');
-      print('Waiting for C++ detection clients...');
+      _logger.info('Flutter gRPC Server started on port 50051');
+      _logger.info('Waiting for C++ detection clients...');
     } catch (e) {
-      print('Failed to start gRPC server: $e');
+      _logger.info('Failed to start gRPC server: $e');
       setState(() {
         _errorMessage = 'gRPC server failed: $e';
       });
@@ -238,7 +241,7 @@ class _CameraScreenState extends State<CameraScreen> {
       }
     });
 
-    print('Detection: ${detection.class_1} (${detection.confidence.toStringAsFixed(2)})');
+    _logger.info('Detection: ${detection.class_1} (${detection.confidence.toStringAsFixed(2)})');
   }
 
   String _getIconPathForDetection(int classId, String className) {
