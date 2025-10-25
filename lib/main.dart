@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:ffi' as ffi;
-import 'dart:io' show Platform, Directory;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:camera_linux/camera_linux.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
-import 'package:path/path.dart' as path;
 import 'package:grpc/grpc.dart';
 import 'package:camera_streams_app/gen/coordinator.pbgrpc.dart';
 
@@ -315,7 +312,7 @@ class _CameraScreenState extends State<CameraScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black..withValues(),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
