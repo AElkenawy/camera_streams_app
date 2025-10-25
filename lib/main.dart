@@ -339,7 +339,7 @@ class _CameraScreenState extends State<CameraScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _currentDetection!.className + " Sign Detected!",
+                  "${_currentDetection!.className} Sign Detected!",
                   style: const TextStyle(
                     fontSize: 18,
                     color: Colors.white,
