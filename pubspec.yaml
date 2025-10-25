@@ -12,7 +12,9 @@ environment:
 dependencies:
   camera: ^0.11.0+1
   camera_linux:
-    path: ../../camera/tcna-packages/packages/camera/camera_linux
+    git:
+      url: https://github.com/toyota-connected/tcna-packages.git
+      path: packages/camera/camera_linux
   ffi: ^2.1.3
   flutter:
     sdk: flutter
