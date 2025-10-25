@@ -1,5 +1,5 @@
 name: camera_streams_app
-description: "A new Flutter project."
+description: "Demonstrates camera streams received from inference models 'cam_infer_models'"
 publish_to: 'none'
 version: 1.0.0+1
 
